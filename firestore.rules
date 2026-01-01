@@ -1,0 +1,26 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // USERS: Allow public read/write. 
+    // This allows the Manual Admin (who is unauthenticated in Firebase's eyes) 
+    // to approve/reject users by updating their status.
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    // APPLICATIONS: Allow public read/write.
+    // This allows the Manual Admin to fetch the list of applications and update them.
+    match /applications/{appId} {
+      allow read, write: if true;
+    }
+
+    // ADMIN: Allow public read.
+    // This allows the LoginScreen to verify the email/password stored in these documents 
+    // before any authentication takes place.
+    match /admin/{adminId} {
+      allow read: if true;
+    }
+  }
+}

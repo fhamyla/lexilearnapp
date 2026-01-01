@@ -1,0 +1,79 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <title>LexiLearn</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'pastel-cream': '#FDFBF7',
+              'pastel-blue': '#E6F3F7',
+              'pastel-green': '#E8F5E9',
+              'pastel-yellow': '#FFF9C4',
+              'dyslexia-text': '#2D2D2D',
+              'brand-primary': '#4A90E2',
+              'brand-secondary': '#66BB6A',
+            },
+            fontFamily: {
+              'readable': ['Verdana', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Verdana', sans-serif;
+        background-color: #FDFBF7;
+        color: #2D2D2D;
+      }
+      /* Custom scrollbar for better aesthetics */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #c1c1c1; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8; 
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js",
+    "lucide-react-native": "https://esm.sh/lucide-react-native@^0.561.0",
+    "react-native": "https://esm.sh/react-native@^0.83.0",
+    "react-native-svg": "https://esm.sh/react-native-svg@^15.15.1",
+    "expo-av": "https://esm.sh/expo-av@^16.0.8",
+    "expo-speech": "https://esm.sh/expo-speech@^14.0.8",
+    "expo-file-system": "https://esm.sh/expo-file-system@^19.0.21",
+    "expo-haptics": "https://esm.sh/expo-haptics@^15.0.8",
+    "expo": "https://esm.sh/expo@^54.0.29",
+    "firebase/": "https://esm.sh/firebase@^12.6.0/",
+    "@react-native-async-storage/async-storage": "https://esm.sh/@react-native-async-storage/async-storage@^1.23.1"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

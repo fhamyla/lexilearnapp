@@ -1,0 +1,8 @@
+{
+  "name": "LexiLearn",
+  "description": "A comprehensive learning tool for children with dyslexia features tracing activities, reading pronunciation checks using Gemini AI, and a progress dashboard for parents.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}

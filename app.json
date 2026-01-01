@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "LexiLearn",
+    "slug": "lexilearn",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "android": {
+      "permissions": [
+        "RECORD_AUDIO",
+        "INTERNET"
+      ],
+      "usesCleartextTraffic": true,
+      "package": "com.lexilearn.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d8c2c8e8-5d9a-49dd-9d13-ac10ec166aee"
+      }
+    }
+  }
+}
