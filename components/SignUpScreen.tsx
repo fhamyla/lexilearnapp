@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, Pressable, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Button, TouchableOpacity, ScrollView, Modal, Pressable, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { Mail, User, Baby, ArrowLeft, Send, ChevronDown, Lock } from 'lucide-react-native';
-import { auth, db, createUserWithEmailAndPassword, signOut, collection, doc, writeBatch } from '../firebaseConfig';
+import { auth, db, createUserWithEmailAndPassword, signOut, doc, setDoc, sendEmailVerification, serverTimestamp, collection } from '../firebaseConfig';
 import { GuardianApplication, UserProfile, Difficulty } from '../types';
 
 interface SignUpProps {
@@ -27,6 +26,9 @@ export const SignUpScreen: React.FC<SignUpProps> = ({ onBack }) => {
 
   const [loading, setLoading] = useState(false);
   const [relationshipModalVisible, setRelationshipModalVisible] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const friendly = (msg: string) => setMessage(msg);
 
   const handleSubmit = async () => {
     // 1. Validation
@@ -54,45 +56,65 @@ export const SignUpScreen: React.FC<SignUpProps> = ({ onBack }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const uid = userCredential.user.uid;
 
-      // 3. Prepare Data for Firestore
-      const userProfile: UserProfile = {
-          uid,
-          email: formData.email,
-          childName: formData.childName,
-          childAge: formData.childAge,
-          role: 'Guardian',
-          status: 'PENDING',
-          assessmentComplete: false,
-          assignedDifficulty: Difficulty.MILD,
-          progressHistory: []
-      };
+      // 3. Send verification email (Firebase sends the link)
+      await sendEmailVerification(auth.currentUser!);
+      friendly('Verification email sent. Please verify within 2 minutes.');
 
-      // 4. Batch Write
-      const batch = writeBatch(db);
-      const userRef = doc(db, "users", uid);
-      const appRef = doc(collection(db, "applications"));
+      // Poll for verification up to 2 minutes — only create Firestore docs after verification
+      const start = Date.now();
+      const timeout = 2 * 60 * 1000;
+      const interval = 3000;
+      const timer = setInterval(async () => {
+        try {
+          await auth.currentUser?.reload();
+          if (auth.currentUser?.emailVerified) {
+            clearInterval(timer);
+            // create user and application docs only after verification (visible to admin as PENDING)
+            const userProfile: UserProfile = {
+              uid,
+              email: auth.currentUser?.email || formData.email,
+              childName: formData.childName,
+              childAge: formData.childAge,
+              role: 'Guardian',
+              status: 'PENDING',
+              assessmentComplete: false,
+              assignedDifficulty: Difficulty.MILD,
+              progressHistory: []
+            };
 
-      const application: GuardianApplication = {
-          id: appRef.id, // Explicitly adding ID
-          uid,
-          guardianName: formData.guardianName,
-          email: formData.email,
-          childName: formData.childName,
-          childAge: formData.childAge,
-          relationship: formData.relationship,
-          difficultyRatings: ratings,
-          status: 'PENDING',
-          dateApplied: new Date().toISOString()
-      };
+            const appRef = doc(collection(db, 'applications'));
+            const application: GuardianApplication = {
+              id: appRef.id,
+              uid,
+              guardianName: formData.guardianName,
+              email: auth.currentUser?.email || formData.email,
+              childName: formData.childName,
+              childAge: formData.childAge,
+              relationship: formData.relationship,
+              difficultyRatings: ratings,
+              status: 'PENDING',
+              dateApplied: new Date().toISOString()
+            };
 
-      batch.set(userRef, userProfile);
-      batch.set(appRef, application);
-
-      await batch.commit();
-
-      // 5. Success Flow - Sign out and return to Login immediately
-      await signOut(auth);
-      onBack();
+            await setDoc(doc(db, 'users', uid), userProfile);
+            await setDoc(appRef, application);
+            await signOut(auth);
+            friendly('Email verified — your application is pending admin approval.');
+            setLoading(false);
+          } else if (Date.now() - start > timeout) {
+            clearInterval(timer);
+            // failed to verify within 2 minutes — delete auth account locally (user self-deleted)
+            try { await auth.currentUser?.delete(); } catch (_) { /* ignore */ }
+            try { await signOut(auth); } catch (_) { /* ignore */ }
+            friendly('Verification expired. Account removed. Please sign up again.');
+            setLoading(false);
+          }
+        } catch (_) {
+          clearInterval(timer);
+          setLoading(false);
+          friendly('An error occurred during verification monitoring.');
+        }
+      }, interval);
 
     } catch (error: any) {
         console.error(error);
@@ -283,6 +305,8 @@ export const SignUpScreen: React.FC<SignUpProps> = ({ onBack }) => {
             )}
         </TouchableOpacity>
 
+        {message ? <Text style={styles.message}>{message}</Text> : null}
+
       </ScrollView>
     </View>
   );
@@ -458,5 +482,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
+  },
+  message: {
+    marginTop: 16,
+    textAlign: 'center',
+    color: '#4A90E2',
+    fontWeight: '500',
   },
 });

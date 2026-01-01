@@ -33,11 +33,14 @@ export const getDoc = firestoreModule.getDoc;
 export const getDocs = firestoreModule.getDocs;
 export const setDoc = firestoreModule.setDoc;
 export const updateDoc = firestoreModule.updateDoc;
+export const deleteDoc = firestoreModule.deleteDoc;
 export const onSnapshot = firestoreModule.onSnapshot;
 export const collection = firestoreModule.collection;
 export const query = firestoreModule.query;
 export const where = firestoreModule.where;
 export const writeBatch = firestoreModule.writeBatch;
+export const serverTimestamp = firestoreModule.serverTimestamp;
+export const serverTimestampFn = firestoreModule.serverTimestamp;
 // Export common Firestore types/functions if needed, but handled as any above so straightforward exports suffice.
 
 // Firebase Configuration
@@ -90,3 +93,7 @@ export { auth, db };
 // Base URL for callable cloud functions that perform admin operations (generate verification links).
 // Set this to your deployed Cloud Function or server endpoint.
 export const FUNCTIONS_BASE_URL = '';
+// Helper to encode emails for use as document IDs
+export const encodeEmail = (email: string) => {
+  return String(email || '').toLowerCase().replace(/\./g, ',');
+};

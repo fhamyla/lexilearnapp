@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Pressable, Alert, StyleSheet } from 'react-native';
-import { auth, db, signInWithEmailAndPassword, signOut, doc, getDoc, collection, query, where, getDocs, sendEmailVerification } from '../firebaseConfig';
-import { FUNCTIONS_BASE_URL } from '../firebaseConfig';
+import { auth, db, signInWithEmailAndPassword, signOut, doc, getDoc, collection, query, where, getDocs, sendEmailVerification, sendPasswordResetEmail, setDoc } from '../firebaseConfig';
+import { FUNCTIONS_BASE_URL, encodeEmail, serverTimestamp } from '../firebaseConfig';
 import { Brain, Lock, Mail, AlertCircle, Users, ClipboardList, ChevronDown, ShieldCheck } from 'lucide-react-native';
 import { UserProfile, Difficulty } from '../types';
 
@@ -207,7 +207,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ onSignUpClick, onLoginSucces
     }
 
     // Prefer server-side endpoint to enforce admin-block and cooldown
-    if (FUNCTIONS_BASE_URL) {
+      if (FUNCTIONS_BASE_URL) {
       try {
         const resp = await fetch(`${FUNCTIONS_BASE_URL}/sendPasswordReset`, {
           method: 'POST',
@@ -234,12 +234,28 @@ export const LoginScreen: React.FC<LoginProps> = ({ onSignUpClick, onLoginSucces
     }
 
     // Fallback: client-side reset (can't enforce admin/cooldown reliably)
-    try {
-      await auth.sendPasswordResetEmail(targetEmail);
-      Alert.alert('Reset Email Sent', 'A password reset link has been sent if the email exists.');
-    } catch (e) {
-      Alert.alert('Error', 'Could not send reset email.');
-    }
+      try {
+        // cooldown check (best-effort client-side)
+        try {
+          const metaRef = doc(db, 'password_reset_meta', encodeEmail(targetEmail));
+          const metaSnap = await getDoc(metaRef);
+          if (metaSnap.exists()) {
+            const last = metaSnap.data()?.lastResetAt;
+            if (last && (Date.now() - last.toDate().getTime()) < 2 * 60 * 1000) {
+              Alert.alert('Try Later', 'Password reset was recently requested. Please wait 2 minutes before trying again.');
+              return;
+            }
+          }
+          await sendPasswordResetEmail(auth, targetEmail);
+          await setDoc(doc(db, 'password_reset_meta', encodeEmail(targetEmail)), { lastResetAt: serverTimestamp() });
+          Alert.alert('Reset Email Sent', 'A password reset link has been sent if the email exists.');
+        } catch (e) {
+          console.warn('Password reset fallback failed', e);
+          Alert.alert('Error', 'Could not send reset email.');
+        }
+      } catch (e) {
+        Alert.alert('Error', 'Could not send reset email.');
+      }
   };
 
   return (
