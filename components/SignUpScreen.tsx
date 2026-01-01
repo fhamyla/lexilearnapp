@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, TouchableOpacity, ScrollView, Modal, Pressable, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { Mail, User, Baby, ArrowLeft, Send, ChevronDown, Lock } from 'lucide-react-native';
-import { auth, db, createUserWithEmailAndPassword, signOut, doc, setDoc, sendEmailVerification, serverTimestamp, collection } from '../firebaseConfig';
+import { auth, db, createUserWithEmailAndPassword, signOut, doc, setDoc, sendEmailVerification, serverTimestamp, collection, deleteDoc } from '../firebaseConfig';
 import { GuardianApplication, UserProfile, Difficulty } from '../types';
 
 interface SignUpProps {
@@ -60,6 +60,22 @@ export const SignUpScreen: React.FC<SignUpProps> = ({ onBack }) => {
       await sendEmailVerification(auth.currentUser!);
       friendly('Verification email sent. Please verify within 2 minutes.');
 
+      // Save pending verification payload so we can finalize after verification
+      try {
+        await setDoc(doc(db, 'pending_verifications', uid), {
+          uid,
+          email: formData.email,
+          guardianName: formData.guardianName,
+          childName: formData.childName,
+          childAge: formData.childAge,
+          relationship: formData.relationship,
+          difficultyRatings: ratings,
+          sentAt: serverTimestamp()
+        });
+      } catch (e) {
+        console.warn('Failed to write pending_verifications', e);
+      }
+
       // Poll for verification up to 2 minutes — only create Firestore docs after verification
       const start = Date.now();
       const timeout = 2 * 60 * 1000;
@@ -98,6 +114,8 @@ export const SignUpScreen: React.FC<SignUpProps> = ({ onBack }) => {
 
             await setDoc(doc(db, 'users', uid), userProfile);
             await setDoc(appRef, application);
+            // remove pending_verifications doc
+            try { await deleteDoc(doc(db, 'pending_verifications', uid)); } catch (e) { /* ignore */ }
             await signOut(auth);
             friendly('Email verified — your application is pending admin approval.');
             setLoading(false);
@@ -106,6 +124,8 @@ export const SignUpScreen: React.FC<SignUpProps> = ({ onBack }) => {
             // failed to verify within 2 minutes — delete auth account locally (user self-deleted)
             try { await auth.currentUser?.delete(); } catch (_) { /* ignore */ }
             try { await signOut(auth); } catch (_) { /* ignore */ }
+            // cleanup pending_verifications doc
+            try { await deleteDoc(doc(db, 'pending_verifications', uid)); } catch (e) { /* ignore */ }
             friendly('Verification expired. Account removed. Please sign up again.');
             setLoading(false);
           }

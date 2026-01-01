@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Modal, Pressable, Alert, StyleSheet } from 'react-native';
-import { auth, db, signInWithEmailAndPassword, signOut, doc, getDoc, collection, query, where, getDocs, sendEmailVerification, sendPasswordResetEmail, setDoc } from '../firebaseConfig';
+import { auth, db, signInWithEmailAndPassword, signOut, doc, getDoc, collection, query, where, getDocs, sendEmailVerification, sendPasswordResetEmail, setDoc, deleteDoc } from '../firebaseConfig';
 import { FUNCTIONS_BASE_URL, encodeEmail, serverTimestamp } from '../firebaseConfig';
 import { Brain, Lock, Mail, AlertCircle, Users, ClipboardList, ChevronDown, ShieldCheck } from 'lucide-react-native';
 import { UserProfile, Difficulty } from '../types';
@@ -122,7 +122,67 @@ export const LoginScreen: React.FC<LoginProps> = ({ onSignUpClick, onLoginSucces
         return;
       }
 
-      // If no user doc, check admin manual list
+      // If no user doc, check pending_verifications (user verified recently) before admin list
+      try {
+        const pvRef = doc(db, 'pending_verifications', uid);
+        const pvSnap = await getDoc(pvRef);
+        if (pvSnap.exists()) {
+          const pv = pvSnap.data() as any;
+          const sentAt = pv.sentAt;
+          const now = Date.now();
+          const sentMs = sentAt && sentAt.toMillis ? sentAt.toMillis() : (new Date(pv.sentAt).getTime ? new Date(pv.sentAt).getTime() : 0);
+          const elapsed = now - sentMs;
+          const TWO_MIN = 2 * 60 * 1000;
+          if (elapsed <= TWO_MIN && auth.currentUser && auth.currentUser.emailVerified) {
+            // Verification within window — finalize creation
+            const userProfile: UserProfile = {
+              uid,
+              email: pv.email,
+              childName: pv.childName,
+              childAge: pv.childAge,
+              role: 'Guardian',
+              status: 'PENDING',
+              assessmentComplete: false,
+              assignedDifficulty: Difficulty.MILD,
+              progressHistory: []
+            };
+            const appRef = doc(collection(db, 'applications'));
+            const application: any = {
+              id: appRef.id,
+              uid,
+              guardianName: pv.guardianName,
+              email: pv.email,
+              childName: pv.childName,
+              childAge: pv.childAge,
+              relationship: pv.relationship,
+              difficultyRatings: pv.difficultyRatings,
+              status: 'PENDING',
+              dateApplied: new Date().toISOString()
+            };
+            try {
+              await setDoc(doc(db, 'users', uid), userProfile);
+              await setDoc(appRef, application);
+            } catch (e) {
+              console.warn('Failed to finalize pending verification', e);
+            }
+            try { await deleteDoc(pvRef); } catch (e) { /* ignore */ }
+            onLoginSuccess(userProfile);
+            return;
+          } else {
+            // Expired — remove account as failure to verify
+            try { await auth.currentUser?.delete(); } catch (e) { /* ignore */ }
+            try { await deleteDoc(pvRef); } catch (e) { /* ignore */ }
+            await signOut(auth);
+            setError('Verification expired. Account removed. Please sign up again.');
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('pending_verifications check failed', e);
+      }
+
+      // If no pending verification, check admin manual list
       try {
         const adminsRef = collection(db, 'admin');
         const q = query(adminsRef, where('email', '==', loginIdentifier));
